@@ -1,0 +1,9 @@
+# CommUnity - Apache Configuration
+Options -Indexes
+DirectoryIndex index.php
+
+# Protect sensitive files
+<FilesMatch "^(database|config|\.htaccess)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
