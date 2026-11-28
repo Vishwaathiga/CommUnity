@@ -58,13 +58,24 @@ if ($action === 'request' && $method === 'POST') {
 
         $request_id = (int) db()->lastInsertId();
 
-        create_notification(
-            $skill['resident_id'],
-            'New Help Request',
-            "{$requester['name']} is requesting help with: {$skill['skill_name']}. Problem: {$description}",
-            'help',
-            $request_id
-        );
+     $requesterLocation = trim(
+    ($requester['block'] ?? '') . ' ' . ($requester['door_number'] ?? '')
+);
+
+$requesterPhone = $requester['phone'] ?? 'Not provided';
+
+$requestMessage = "{$requester['name']} is requesting help with: {$skill['skill_name']}.
+Problem: {$description}.
+Location: {$requesterLocation}.
+Phone: {$requesterPhone}.";
+
+create_notification(
+    $skill['resident_id'],
+    'New Help Request',
+    $requestMessage,
+    'help',
+    $request_id
+);
 
         log_activity(current_user_id(), 'Help Request', 'Help', "Requested help for skill: {$skill['skill_name']}.");
         echo json_encode(['success' => true, 'message' => 'Help request submitted successfully.']);

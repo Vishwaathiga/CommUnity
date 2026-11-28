@@ -39,12 +39,16 @@ try {
 // Fetch resource requests for my resources
 try {
     $stmt = db()->prepare("
-        SELECT rr.*, r.item_name, u.name AS requester_name, u.block, u.door_number
-        FROM resource_requests rr
-        JOIN resources r ON rr.resource_id = r.id
-        JOIN users u ON rr.requester_id = u.id
-        WHERE r.owner_id = ?
-        ORDER BY rr.requested_at DESC
+      SELECT rr.*, r.item_name,
+       u.name AS requester_name,
+       u.block,
+       u.door_number,
+       u.phone AS requester_phone
+FROM resource_requests rr
+JOIN resources r ON rr.resource_id = r.id
+JOIN users u ON rr.requester_id = u.id
+WHERE r.owner_id = ?
+ORDER BY rr.requested_at DESC
     ");
     $stmt->execute([current_user_id()]);
     $resource_requests = $stmt->fetchAll();
@@ -108,7 +112,9 @@ require __DIR__ . '/../includes/top.php';
                             <h5><?= e($rr['item_name']) ?></h5>
                             <?= resource_request_badge($rr['status']) ?>
                         </div>
-                        <p><strong>From:</strong> <?= e($rr['requester_name']) ?> (<?= e($rr['block'] . ' ' . $rr['door_number']) ?>)</p>
+                      <p><strong>From:</strong> <?= e($rr['requester_name']) ?></p>
+<p><strong>Location:</strong> <?= e($rr['block'] . ' - ' . $rr['door_number']) ?></p>
+<p><strong>Phone:</strong> <?= e($rr['requester_phone'] ?? 'Not provided') ?></p>
                         <?php if ($rr['message']): ?>
                             <p><strong>Message:</strong> <?= e($rr['message']) ?></p>
                         <?php endif; ?>

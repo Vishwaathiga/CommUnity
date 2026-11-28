@@ -3,7 +3,17 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
+    // ---------- Modal open functionality ----------
+    document.querySelectorAll('[data-toggle="modal"]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const target = button.getAttribute('data-target');
+            const modal = document.querySelector(target);
 
+            if (modal) {
+                modal.classList.add('active');
+            }
+        });
+    });
     // ---------- Mobile menu toggle ----------
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');

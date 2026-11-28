@@ -15,14 +15,21 @@ $role = 'resident';
 // Fetch help requests (both sent and received)
 try {
     // Requests I sent
-    $stmt = db()->prepare("
-        SELECT hr.*, s.skill_name, s.category, u.name AS provider_name
-        FROM help_requests hr
-        JOIN skills s ON hr.skill_id = s.id
-        LEFT JOIN users u ON hr.provider_id = u.id
-        WHERE hr.requester_id = ?
-        ORDER BY hr.created_at DESC
-    ");
+  $stmt = db()->prepare("
+    SELECT
+        hr.*,
+        s.skill_name,
+        s.category,
+        u.name AS requester_name,
+        u.phone AS requester_phone,
+        u.block AS requester_block,
+        u.door_number AS requester_door_number
+    FROM help_requests hr
+    JOIN skills s ON hr.skill_id = s.id
+    JOIN users u ON hr.requester_id = u.id
+    WHERE hr.provider_id = ?
+    ORDER BY hr.created_at DESC
+");
     $stmt->execute([current_user_id()]);
     $sent_requests = $stmt->fetchAll();
 
@@ -64,11 +71,19 @@ require __DIR__ . '/../includes/top.php';
                                 <h5><?= e($hr['skill_name']) ?></h5>
                                 <?= help_status_badge($hr['status']) ?>
                             </div>
-                            <p><?= e($hr['description']) ?></p>
-                            <small class="text-muted">
-                                Provider: <?= e($hr['provider_name'] ?? 'Not assigned yet') ?> |
-                                Date: <?= format_date($hr['preferred_date']) ?>
-                            </small>
+                         <p><?= e($hr['description']) ?></p>
+
+<p>
+    <strong>From:</strong> <?= e($hr['requester_name']) ?><br>
+    <strong>Location:</strong>
+    <?= e($hr['requester_block'] . ' - ' . $hr['requester_door_number']) ?><br>
+    <strong>Phone:</strong>
+    <?= e($hr['requester_phone'] ?? 'Not provided') ?><br>
+    <strong>Preferred Date:</strong>
+    <?= $hr['preferred_date'] ? format_date($hr['preferred_date']) : 'Not specified' ?><br>
+    <strong>Preferred Time:</strong>
+    <?= e($hr['preferred_time'] ?? 'Not specified') ?>
+</p>
                             <?php if ($hr['status'] === 'Pending'): ?>
                                 <div class="notification-actions">
                                     <button class="btn btn-sm btn-danger" onclick="cancelHelpRequest(<?= $hr['id'] ?>)">Cancel</button>

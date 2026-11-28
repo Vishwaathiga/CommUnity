@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_resource'])) {
             }
         }
 
-        $stmt = db()->prepare("INSERT INTO resources (owner_id, item_name, category, description, image, condition, sharing_type, price, security_deposit, availability, preferred_contact, location, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt = db()->prepare("INSERT INTO resources (owner_id, item_name, category, description, image, `condition`, sharing_type, price, security_deposit, availability, preferred_contact, location, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([current_user_id(), $item_name, $category, $description, $image, $condition, $sharing_type, $price, $security_deposit, $availability, $preferred_contact, $location, $notes]);
 
         log_activity(current_user_id(), 'Added Resource', 'Resources', "Added resource: $item_name.");
