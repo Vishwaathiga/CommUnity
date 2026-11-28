@@ -6,6 +6,6 @@
     </footer>
 </div><!-- /.main-content -->
 
-<script src="<?= e(BASE_URL) ?>assets/js/app.js"></script>
+<script src="<?= e(BASE_URL) ?>assets/js/app.js?v=20261128otp"></script>
 </body>
 </html>

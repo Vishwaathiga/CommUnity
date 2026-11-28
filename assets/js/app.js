@@ -594,17 +594,130 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
 
-    // ---------- Delivery collected ----------
+  
+    // ---------- Delivery collected with OTP ----------
+
     window.markDeliveryCollected = function (deliveryId) {
-        fetch(BASE_URL + 'api/deliveries.php?action=collect', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'delivery_id=' + deliveryId
-        })
-        .then(r => r.json())
-        .then(data => {
-            setFlashMessage(data.success ? 'success' : 'danger', data.message);
-            setTimeout(() => location.reload(), 1000);
+
+        // Remove an existing OTP box, if present
+        const existingModal = document.getElementById('deliveryOtpModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create OTP entry box
+        const modal = document.createElement('div');
+        modal.id = 'deliveryOtpModal';
+
+        modal.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 25px;
+                border-radius: 10px;
+                width: 90%;
+                max-width: 400px;
+                color: #333;
+            ">
+                <h3 style="margin-top:0;">Verify Collection OTP</h3>
+                <p>Enter the 4-digit OTP received by the resident.</p>
+
+                <input
+                    type="text"
+                    id="deliveryOtpInput"
+                    maxlength="4"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    placeholder="Enter 4-digit OTP"
+                    style="
+                        width: 100%;
+                        padding: 12px;
+                        border: 1px solid #ccc;
+                        border-radius: 5px;
+                        font-size: 18px;
+                        box-sizing: border-box;
+                        margin-bottom: 15px;
+                    "
+                >
+
+                <div style="display:flex; gap:10px;">
+                    <button type="button" id="verifyDeliveryOtp"
+                        class="btn btn-success">Verify OTP</button>
+
+                    <button type="button" id="cancelDeliveryOtp"
+                        class="btn btn-outline">Cancel</button>
+                </div>
+
+                <p id="deliveryOtpError"
+                    style="color:red; margin-bottom:0;"></p>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const otpInput = document.getElementById('deliveryOtpInput');
+        const verifyButton = document.getElementById('verifyDeliveryOtp');
+        const cancelButton = document.getElementById('cancelDeliveryOtp');
+        const errorMessage = document.getElementById('deliveryOtpError');
+
+        otpInput.focus();
+
+        cancelButton.addEventListener('click', function () {
+            modal.remove();
+        });
+
+        verifyButton.addEventListener('click', function () {
+
+            const otp = otpInput.value.trim();
+
+            if (!/^\d{4}$/.test(otp)) {
+                errorMessage.textContent = 'Please enter a valid four-digit OTP.';
+                otpInput.focus();
+                return;
+            }
+
+            verifyButton.disabled = true;
+            verifyButton.textContent = 'Verifying...';
+            errorMessage.textContent = '';
+
+            fetch(BASE_URL + 'api/deliveries.php?action=collect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    delivery_id: deliveryId,
+                    otp: otp
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+
+                if (data.success) {
+                    modal.remove();
+                    setFlashMessage('success', data.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    errorMessage.textContent = data.message;
+                    verifyButton.disabled = false;
+                    verifyButton.textContent = 'Verify OTP';
+                }
+
+            })
+            .catch(() => {
+                errorMessage.textContent = 'Unable to verify OTP. Please try again.';
+                verifyButton.disabled = false;
+                verifyButton.textContent = 'Verify OTP';
+            });
         });
     };
 

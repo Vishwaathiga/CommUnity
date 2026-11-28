@@ -23,24 +23,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_delivery'])) {
 
     if ($resident_id > 0 && $person_name && $arrival_time && $company) {
         try {
-            $stmt = db()->prepare("INSERT INTO deliveries (resident_id, delivery_person_name, arrival_time, company_name, delivery_type) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$resident_id, $person_name, $arrival_time, $company, $type]);
+            // Save delivery
+            $stmt = db()->prepare("
+                INSERT INTO deliveries
+                (resident_id, delivery_person_name, arrival_time, company_name, delivery_type)
+                VALUES (?, ?, ?, ?, ?)
+            ");
 
-            // Check resident availability
+            $stmt->execute([
+                $resident_id,
+                $person_name,
+                $arrival_time,
+                $company,
+                $type
+            ]);
+
+            // Get newly inserted delivery ID
+            $delivery_id = db()->lastInsertId();
+
+            // Get resident details
             $resident = get_user($resident_id);
-            if ($resident && $resident['availability'] === 'Not Available') {
-                set_flash('warning', 'Delivery added successfully. Resident is Not Available — you can notify them.');
-            } else {
-                set_flash('success', 'Delivery added successfully.');
+
+            // Automatically notify the resident
+            $notificationSent = false;
+
+            if ($resident) {
+                $message = "A new delivery has arrived for you.\n"
+                    . "Delivery Person: {$person_name}\n"
+                    . "Company: {$company}\n"
+                    . "Delivery Type: {$type}\n"
+                    . "Arrival Time: {$arrival_time}\n"
+                    . "Please contact the watchman to collect your delivery.";
+
+                try {
+                    create_notification(
+                        $resident_id,
+                        'Delivery Arrived',
+                        $message,
+                        'delivery',
+                        $delivery_id
+                    );
+
+                    $notificationSent = true;
+                } catch (Throwable $notificationError) {
+                    error_log('Delivery notification failed: ' . $notificationError->getMessage());
+                }
             }
 
-            log_activity(current_user_id(), 'Added Delivery', 'Deliveries', "Delivery for resident ID $resident_id by $person_name.");
+            // Show appropriate message
+            if ($notificationSent) {
+                if ($resident['availability'] === 'Not Available') {
+                    set_flash(
+                        'warning',
+                        'Delivery added and resident notified automatically. You can also send the OTP notification using the button below.'
+                    );
+                } else {
+                    set_flash('success', 'Delivery added successfully. Resident has been notified.');
+                }
+            } else {
+                set_flash(
+                    'warning',
+                    'Delivery saved successfully, but the resident notification could not be sent.'
+                );
+            }
+
+            log_activity(
+                current_user_id(),
+                'Added Delivery',
+                'Deliveries',
+                "Delivery for resident ID $resident_id by $person_name."
+            );
+
         } catch (PDOException $e) {
+            error_log('Delivery save failed: ' . $e->getMessage());
             set_flash('danger', 'Failed to add delivery.');
         }
     } else {
         set_flash('danger', 'Please fill all required fields.');
     }
+
     header("Location: " . BASE_URL . "watchman/deliveries.php");
     exit;
 }
@@ -135,7 +196,7 @@ require __DIR__ . '/../includes/top.php';
                                 <th>Type</th>
                                 <th>Resident</th>
                                 <th>Status</th>
-                                <th>Notification</th>
+                                <th>Collection Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -145,16 +206,30 @@ require __DIR__ . '/../includes/top.php';
                                     <td><?= e($d['company_name']) ?></td>
                                     <td><?= e($d['delivery_type']) ?></td>
                                     <td><?= e($d['resident_name'] . ' (' . $d['block'] . ' ' . $d['door_number'] . ')') ?></td>
-                                    <td><?= delivery_status_badge($d['status']) ?></td>
-                                    <td>
-                                        <?php if ($d['notification_sent']): ?>
-                                            <span class="badge badge-success">Sent</span>
-                                        <?php elseif ($d['status'] !== 'Collected' && $d['availability'] === 'Not Available'): ?>
-                                            <button class="btn btn-sm btn-warning" onclick="notifyDeliveryResident(<?= $d['id'] ?>)">Notify Resident</button>
-                                        <?php else: ?>
-                                            <span class="text-muted">—</span>
-                                        <?php endif; ?>
-                                    </td>
+                                   <td><?= delivery_status_badge($d['status']) ?></td>
+
+<td>
+    <?php if ($d['status'] === 'Collected'): ?>
+        <span class="badge badge-success">Completed</span>
+    <?php else: ?>
+
+        <button
+            class="btn btn-sm btn-warning"
+            onclick="notifyDeliveryResident(<?= (int) $d['id'] ?>)">
+            <?= $d['notification_sent'] ? 'Resend OTP' : 'Send Collection OTP' ?>
+        </button>
+
+        <?php if ($d['notification_sent']): ?>
+            <button
+                class="btn btn-sm btn-success"
+                onclick="markDeliveryCollected(<?= (int) $d['id'] ?>)">
+                Mark Collected
+            </button>
+        <?php endif; ?>
+
+    <?php endif; ?>
+</td>
+
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
